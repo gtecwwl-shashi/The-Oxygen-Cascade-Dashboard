@@ -1,98 +1,100 @@
 import streamlit as st
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Oxygen Cascade Tutor", layout="wide")
+st.set_page_config(page_title="Oxygen Cascade Master Quiz", layout="wide")
 
-# Custom Styling for a Clinical Dashboard
-st.markdown("""
-    <style>
-    .stNumberInput { border: 2px solid #2c3e50; border-radius: 5px; }
-    .main { background-color: #fcfcfc; }
-    </style>
-    """, unsafe_allow_html=True)
+st.title("🎯 The Oxygen Cascade Master Challenge")
+st.write("Scenario: Sea Level ($P_B$ 101.3 kPa) | $F_iO_2$ 21%")
 
-st.title("🫁 Interactive Oxygen Cascade Challenge")
-st.write("Sea Level ($P_B$ 101.3 kPa) | $F_iO_2$ 21% | Normal Metabolism")
-
-# --- 1. Define the Physiological Truth ---
-# Based on your provided Stockport NHS and Textbook diagrams
-truth_data = [
-    {"stage": "Dry Air", "pao2": 21.2, "label": "Initial FiO2"},
-    {"stage": "Trachea", "pao2": 19.8, "label": "Humidification (-6.3 kPa H2O)"},
-    {"stage": "Alveoli", "pao2": 14.0, "label": "Alveolar Gas Equation"},
-    {"stage": "Artery", "pao2": 13.0, "label": "Physiological Shunt"},
-    {"stage": "Capillary", "pao2": 7.0, "label": "Tissue Diffusion"},
-    {"stage": "Vein", "pao2": 5.3, "label": "Mixed Venous O2"},
-    {"stage": "Mitochondria", "pao2": 1.2, "label": "Cellular Respiration"}
+# --- 1. The Physiological Database ---
+truth = [
+    {"label": "Dry Air", "val": 21.2, "desc": "Atmospheric Oxygen"},
+    {"label": "Trachea", "val": 19.8, "desc": "Humidification Drop"},
+    {"label": "Alveoli", "val": 14.0, "desc": "Alveolar Gas Equation Drop"},
+    {"label": "Artery", "val": 13.0, "desc": "Physiological Shunt Drop"},
+    {"label": "Capillary", "val": 7.0, "desc": "Tissue Extraction Drop"},
+    {"label": "Vein", "val": 5.3, "desc": "Mixed Venous Return"},
+    {"label": "Mitochondria", "val": 1.2, "desc": "Cellular Respiration (The 'End')"}
 ]
 
-stages = [d["stage"] for d in truth_data]
-correct_vals = [d["pao2"] for d in truth_data]
+# --- 2. Quiz Interface ---
+st.subheader("Step 1: Identify the Locations & Predict Values")
+st.info("Fill in the labels and the partial pressures (kPa) for the cascade below.")
 
-# --- 2. Student Input Section ---
-st.subheader("Step 1: Predict the $P_{O_2}$ at each level (kPa)")
-cols = st.columns(len(stages))
-user_guesses = []
+user_labels = []
+user_values = []
 
-for i, stage in enumerate(stages):
-    with cols[i]:
-        guess = st.number_input(f"{stage}", min_value=0.0, max_value=22.0, value=0.0, step=0.1, key=f"input_{i}")
-        user_guesses.append(guess)
+# Create a grid for inputs
+for i in range(len(truth)):
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        u_label = st.selectbox(f"Level {i+1} Identification", 
+                              options=["---", "Alveoli", "Artery", "Atmosphere/Dry Air", "Capillary", "Mitochondria", "Trachea", "Vein"],
+                              key=f"label_{i}")
+        user_labels.append(u_label)
+    with c2:
+        u_val = st.number_input(f"PO2 (kPa) for Level {i+1}", min_value=0.0, max_value=25.0, value=0.0, step=0.1, key=f"val_{i}")
+        user_values.append(u_val)
 
-# --- 3. Reveal and Visualize ---
-if st.button("🚀 Submit & Reveal Physiological Reality"):
+# --- 3. Evaluation Logic ---
+if st.button("Submit and Compare with Physiology"):
     
+    # Check Accuracy
+    label_score = 0
+    value_score = 0
+    
+    # We map the sorted true labels to compare
+    true_labels = [t["label"] for t in truth]
+    true_vals = [t["val"] for t in truth]
+
+    # Visualization
     fig = go.Figure()
 
-    # User's Prediction (Dashed Line)
+    # User's Staircase
     fig.add_trace(go.Scatter(
-        x=stages, y=user_guesses,
+        x=list(range(len(truth))),
+        y=user_values,
         mode='lines+markers',
         name='Your Prediction',
-        line=dict(color='gray', dash='dot', shape='hv'),
-        marker=dict(size=8, symbol='x')
+        line=dict(color='#95a5a6', dash='dot', shape='hv'),
+        marker=dict(size=10)
     ))
 
-    # Physiological Reality (Solid Staircase Line)
+    # Actual Physiological Staircase
     fig.add_trace(go.Scatter(
-        x=stages, y=correct_vals,
+        x=list(range(len(truth))),
+        y=true_vals,
         mode='lines+markers+text',
         name='Physiological Reality',
-        text=[f"{v} kPa" for v in correct_vals],
-        textposition="top right",
-        line=dict(color='#004a99', width=6, shape='hv'), # 'hv' creates the staircase effect
+        text=[f"{v} kPa" for v in true_vals],
+        textposition="top center",
+        line=dict(color='#e74c3c', width=6, shape='hv'),
         marker=dict(size=12, symbol='square')
     ))
 
-    # Add annotations for the 'Drops' (Matching your diagrams)
-    for i in range(len(truth_data)):
-        fig.add_annotation(
-            x=stages[i], y=correct_vals[i],
-            text=truth_data[i]["label"],
-            showarrow=True, arrowhead=2, ay=-40, ax=20,
-            font=dict(size=10, color="#d9534f")
-        )
-
     fig.update_layout(
-        title="<b>Oxygen Cascade: Partial Pressure of O2 (kPa)</b>",
+        title="<b>Oxygen Cascade: Predicted vs. Actual</b>",
+        xaxis=dict(tickmode='array', tickvals=list(range(len(truth))), ticktext=true_labels),
         yaxis_title="PO2 (kPa)",
         template="plotly_white",
-        yaxis=dict(range=[0, 25], gridcolor='#eee'),
-        height=600,
-        showlegend=True
+        height=600
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- 4. Scoring & Feedback ---
-    # Calculate score based on 1.0 kPa tolerance
-    score = sum(1 for u, t in zip(user_guesses, correct_vals) if abs(u - t) < 1.0)
-    
-    if score == len(stages):
-        st.balloons()
-        st.success(f"Perfect! Score: {score}/{len(stages)}. You have mastered the cascade.")
-    else:
-        st.info(f"You identified {score} out of {len(stages)} levels accurately. Review the red labels to see why the pressure drops at each stage.")
+    # Display Results Table
+    st.subheader("Detailed Feedback")
+    for i in range(len(truth)):
+        # Check label (simple string match, ignoring 'Atmosphere/Dry Air' quirk)
+        is_label_correct = user_labels[i] in true_labels[i] or (user_labels[i] == "Atmosphere/Dry Air" and true_labels[i] == "Dry Air")
+        # Check value (within 0.5 kPa tolerance)
+        is_val_correct = abs(user_values[i] - true_vals[i]) <= 0.5
+        
+        col_a, col_b, col_c = st.columns(3)
+        col_a.write(f"**Step {i+1}:** {true_labels[i]}")
+        col_b.write(f"Label: {'✅' if is_label_correct else '❌'}")
+        col_c.write(f"Value: {'✅' if is_val_correct else '❌'} (Target: {true_vals[i]} kPa)")
 
-st.markdown("---")
-st.caption("Developed for Medical Education | Based on the Infection Sciences & NHS Foundation Trust Models")
+    if all(abs(user_values[i] - true_vals[i]) <= 0.5 for i in range(len(truth))):
+        st.balloons()
+        st.success("You have a perfect understanding of the Oxygen Cascade!")
