@@ -7,7 +7,7 @@ st.title("🫁 The Oxygen Cascade: Hidden Challenge")
 st.markdown("""
 **Instructions:** 1. Identify the physiological level from the dropdown.
 2. Enter your predicted $P_{O_2}$ in kPa.
-3. Click 'Submit' to reveal how your curve compares to the real Oxygen Cascade.
+3. Click **'Submit & Reveal Reality'** to compare your curve to the real Oxygen Cascade.
 """)
 
 # --- 1. Internal Data (The Truth) ---
@@ -30,7 +30,7 @@ st.subheader("Step 1: Build Your Cascade")
 user_labels = []
 user_values = []
 
-# Use columns for a clean input interface
+# Input grid
 for i in range(len(truth)):
     cols = st.columns([2, 1])
     with cols[0]:
@@ -43,7 +43,6 @@ for i in range(len(truth)):
         user_values.append(u_val)
 
 # --- 3. Graphing & Reveal Logic ---
-# We use Session State to keep the "Truth" hidden until the button is pressed
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
 
@@ -52,8 +51,7 @@ if st.button("Submit & Reveal Reality"):
 
 fig = go.Figure()
 
-# ALWAYS show the User's Prediction (if they've entered data)
-# We map the X-axis to their selected labels
+# Plot User Prediction
 fig.add_trace(go.Scatter(
     x=[f"{i+1}: {l}" for i, l in enumerate(user_labels)],
     y=user_values,
@@ -63,13 +61,41 @@ fig.add_trace(go.Scatter(
     marker=dict(size=10, symbol='x')
 ))
 
-# ONLY show the Physiological Reality if the button was clicked
+# Plot Reality ONLY if submitted
 if st.session_state.submitted:
     fig.add_trace(go.Scatter(
-        x=[f"{i+1}: {l}" for i, l in enumerate(true_labels)],
+        x=[f"{i+1}: {l}" for i, l in enumerate(user_labels)], # Keep same X-axis for direct comparison
         y=true_vals,
         mode='lines+markers+text',
         name='Physiological Reality',
         text=[f"{v} kPa" for v in true_vals],
         textposition="top right",
         line=dict(color='#e74c3c', width=5, shape='hv'),
+        marker=dict(size=12, symbol='square')
+    ))
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Feedback Summary
+    st.subheader("Analysis")
+    score = 0
+    for i in range(len(truth)):
+        is_correct = (user_labels[i] == true_labels[i]) and (abs(user_values[i] - true_vals[i]) <= 0.8)
+        if is_correct:
+            score += 1
+            st.success(f"✅ Step {i+1}: {true_labels[i]} is correct at {true_vals[i]} kPa")
+        else:
+            st.error(f"❌ Step {i+1}: Expected {true_labels[i]} ({true_vals[i]} kPa)")
+    
+    st.metric("Total Score", f"{score}/7")
+    if score == 7:
+        st.balloons()
+else:
+    fig.update_layout(title="Your Predicted Cascade (Submit to reveal Truth)")
+    st.plotly_chart(fig, use_container_width=True)
+    st.info("The red line is hidden. Finish your predictions and click Submit!")
+
+if st.button("Reset Quiz"):
+    for key in st.session_state.keys():
+        del st.session_state[key]
+    st.rerun()
